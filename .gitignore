@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+dist/
+build/
+*.spec
+!ThaiDanceScoring.spec
+teacher_videos/
+*.mp4
+*.log
+.DS_Store
+credentials.json
+token.json
