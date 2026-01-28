@@ -83,12 +83,31 @@ qt_multimedia_imports = [
     "PySide6.QtMultimedia",
 ]
 
+# Hidden imports สำหรับ MediaPipe (สำคัญมาก - แก้ปัญหา 'mediapipe has no attribute solutions')
+mediapipe_imports = [
+    "mediapipe",
+    "mediapipe.python",
+    "mediapipe.python.solutions",
+    "mediapipe.python.solutions.pose",
+    "mediapipe.python.solutions.drawing_utils",
+    "mediapipe.python.solutions.drawing_styles",
+    "mediapipe.python.solutions.hands",
+    "mediapipe.python.solutions.face_mesh",
+    "mediapipe.python.solutions.holistic",
+    "mediapipe.modules",
+    "mediapipe.modules.pose_detection",
+    "mediapipe.modules.pose_landmark",
+    "mediapipe.calculators",
+    "mediapipe.framework",
+    "mediapipe.tasks",
+]
+
 a = Analysis(
     ["main.py"],
     pathex=[],
     binaries=[],
     datas=mp_datas + app_datas,   # <-- รวม mediapipe + app data files
-    hiddenimports=ultralytics_imports + google_imports + qt_multimedia_imports,
+    hiddenimports=ultralytics_imports + google_imports + qt_multimedia_imports + mediapipe_imports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

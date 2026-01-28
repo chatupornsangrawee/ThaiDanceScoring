@@ -1592,11 +1592,11 @@ class MenuScreen(BackgroundWidget):
         self.setLayout(layout)
 
     def open_manual(self):
-        url = QUrl("https://thep-bantherng.my.canva.site/dag-iff-x48?fbclid=IwY2xjawPhWjdleHRuA2FlbQIxMABicmlkETFZc1FiTGxNMGk2WUxOUURJc3J0YwZhcHBfaWQQMjIyMDM5MTc4ODIwMDg5MgABHnojItaQtSgfJl4cqCgmthNDQU1BMhkCboUvQDbYjn8gLj_uNuEXYdbJdJIx_aem_i-rWWDoRpQyAYLpZp5LawQ")
+        url = QUrl("https://thep-bantherng.my.canva.site/?fbclid=IwY2xjawPh0xFleHRuA2FlbQIxMABicmlkETFDanRCcjdFem05OFY4TmF5c3J0YwZhcHBfaWQQMjIyMDM5MTc4ODIwMDg5MgABHu1eq7ohjOsqFTeBDvGDE0dv7xd3z0csXrYoouAwZ2u_BzNf3wkdYMND16lL_aem_plfCPz3-wd_bhvzvoZ9PIw")
         QDesktopServices.openUrl(url)
 
     def open_learning(self):
-        url = QUrl("https://thep-bantherng.my.canva.site/?fbclid=IwY2xjawPh0xFleHRuA2FlbQIxMABicmlkETFDanRCcjdFem05OFY4TmF5c3J0YwZhcHBfaWQQMjIyMDM5MTc4ODIwMDg5MgABHu1eq7ohjOsqFTeBDvGDE0dv7xd3z0csXrYoouAwZ2u_BzNf3wkdYMND16lL_aem_plfCPz3-wd_bhvzvoZ9PIw")
+        url = QUrl("https://thep-bantherng.my.canva.site/dag-iff-x48?fbclid=IwY2xjawPhWjdleHRuA2FlbQIxMABicmlkETFZc1FiTGxNMGk2WUxOUURJc3J0YwZhcHBfaWQQMjIyMDM5MTc4ODIwMDg5MgABHnojItaQtSgfJl4cqCgmthNDQU1BMhkCboUvQDbYjn8gLj_uNuEXYdbJdJIx_aem_i-rWWDoRpQyAYLpZp5LawQ")
         QDesktopServices.openUrl(url)
 
 
