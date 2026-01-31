@@ -883,7 +883,9 @@ class VideoReaderThread(QThread):
                     continue
                 if self.mirror:
                     frame = cv2.flip(frame, 1)
-                frame = resize_limit(frame, self.max_w)
+
+                # Keep original for recording (HD), resize for UI
+                frame_small = resize_limit(frame, self.max_w)
 
                 if self.record_path:
                     if writer is None:
@@ -891,13 +893,14 @@ class VideoReaderThread(QThread):
                             os.makedirs(os.path.dirname(self.record_path), exist_ok=True)
                         except Exception:
                             pass
+                        # Use full resolution for recording
                         h, w = frame.shape[:2]
                         writer = cv2.VideoWriter(self.record_path, fourcc, rec_fps, (w, h))
                     if writer is not None:
                         writer.write(frame)
 
                 cam_idx += 1
-                self.frameReady.emit(frame, cam_idx, time.time())
+                self.frameReady.emit(frame_small, cam_idx, time.time())
                 next_emit += emit_dt
                 continue
 
@@ -1596,7 +1599,7 @@ class MenuScreen(BackgroundWidget):
         QDesktopServices.openUrl(url)
 
     def open_learning(self):
-        url = QUrl("https://thep-bantherng.my.canva.site/dag-iff-x48?fbclid=IwY2xjawPhWjdleHRuA2FlbQIxMABicmlkETFZc1FiTGxNMGk2WUxOUURJc3J0YwZhcHBfaWQQMjIyMDM5MTc4ODIwMDg5MgABHnojItaQtSgfJl4cqCgmthNDQU1BMhkCboUvQDbYjn8gLj_uNuEXYdbJdJIx_aem_i-rWWDoRpQyAYLpZp5LawQ")
+        url = QUrl("https://thep-bantherng.my.canva.site/dag-yp6nhvu")
         QDesktopServices.openUrl(url)
 
 
