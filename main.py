@@ -4,7 +4,14 @@ os.environ.setdefault("MPLCONFIGDIR", os.path.join(os.path.expanduser("~"), ".th
 import sys
 
 # Redirect stdout/stderr to log file when running as bundled app
-LOG_FILE = os.path.expanduser("~/Desktop/thaidancescoring_debug.log")
+# ใช้ ~/Documents เพื่อแก้ปัญหา Read-only บน macOS (App Translocation)
+USER_DATA_DIR = os.path.join(os.path.expanduser("~"), "Documents", "ThaiDanceScoring")
+try:
+    os.makedirs(USER_DATA_DIR, exist_ok=True)
+except Exception:
+    pass
+
+LOG_FILE = os.path.join(USER_DATA_DIR, "debug.log")
 if getattr(sys, 'frozen', False):
     try:
         log_handle = open(LOG_FILE, 'w', buffering=1)  # line buffered
@@ -13,6 +20,7 @@ if getattr(sys, 'frozen', False):
         print(f"[LOG] App started at {os.getcwd()}")
         print(f"[LOG] sys.executable = {sys.executable}")
         print(f"[LOG] sys._MEIPASS = {getattr(sys, '_MEIPASS', 'N/A')}")
+        print(f"[LOG] USER_DATA_DIR = {USER_DATA_DIR}")
     except Exception as e:
         pass  # Ignore if can't write log
 def resource_path(relative_path):
@@ -28,6 +36,7 @@ import urllib.request
 import urllib.parse
 import threading
 import mimetypes
+import webbrowser
 from dataclasses import dataclass
 from collections import deque
 from typing import List, Tuple, Optional, Dict, Any
@@ -64,8 +73,8 @@ GSHEET_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbxolQRtIY9uWyYBX94T
 # =========================
 # Teacher video dropdown dir
 # =========================
-# ใช้ resource_path() สำหรับ bundled app, ส่วน recordings ใช้ APP_DIR ปกติ
-# Fix: ใช้ sys.executable แทน __file__ สำหรับ bundled app
+# ใช้ resource_path() สำหรับ bundled app
+# ส่วน recordings และ token ใช้ USER_DATA_DIR เพื่อเลี่ยงปัญหา Read-only
 if getattr(sys, 'frozen', False):
     # Running as bundled app - use executable directory
     APP_DIR = os.path.dirname(sys.executable)
@@ -78,7 +87,9 @@ else:
 print(f"[DEBUG] APP_DIR = {APP_DIR}")
 TEACHER_VIDEO_DIR = resource_path("teacher_videos")
 print(f"[DEBUG] TEACHER_VIDEO_DIR = {TEACHER_VIDEO_DIR}")
-RECORDINGS_DIR = os.path.join(APP_DIR, "recordings")
+
+# Use user writable dir for recordings
+RECORDINGS_DIR = os.path.join(USER_DATA_DIR, "recordings")
 VIDEO_EXTS = (".mp4", ".mov", ".mkv", ".avi", ".webm", ".m4v")
 
 # =========================
@@ -96,7 +107,7 @@ except Exception:
 
 DRIVE_SCOPES = ["https://www.googleapis.com/auth/drive.file"]  # upload files created/selected by this app
 DRIVE_CREDENTIALS_FILE = resource_path("credentials.json")
-DRIVE_TOKEN_FILE = os.path.join(APP_DIR, "token.json")
+DRIVE_TOKEN_FILE = os.path.join(USER_DATA_DIR, "token.json")
 
 # YOLO model path
 YOLO_MODEL_PATH = resource_path("yolov8n.pt")
@@ -170,7 +181,7 @@ def post_score_to_gsheet(payload: Dict):
 
 def _get_drive_service():
     if not DRIVE_OK:
-        raise RuntimeError("Drive libs not installed. Run: pip install google-api-python-client google-auth-httplib2 google-auth-oauthlib")
+        raise RuntimeError("Drive libs not installed. Run: pip install google-api-python-client google-auth-httplib2 google-auth-oauthlab")
     if not os.path.exists(DRIVE_CREDENTIALS_FILE):
         raise RuntimeError(f"Missing credentials.json at: {DRIVE_CREDENTIALS_FILE}")
 
@@ -180,46 +191,106 @@ def _get_drive_service():
 
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
+            try:
+                creds.refresh(Request())
+            except Exception as e:
+                print(f"[WARN] Token refresh failed: {e}. Clearing creds to re-login.")
+                creds = None
+        
+        if not creds:
             flow = InstalledAppFlow.from_client_secrets_file(DRIVE_CREDENTIALS_FILE, DRIVE_SCOPES)
-            creds = flow.run_local_server(port=0)
-        with open(DRIVE_TOKEN_FILE, "w", encoding="utf-8") as f:
-            f.write(creds.to_json())
+            # Use run_local_server with open_browser=True to ensure browser opens
+            # If that fails, manually open browser
+            try:
+                # First try with open_browser=True
+                creds = flow.run_local_server(port=0, open_browser=True)
+            except Exception as e:
+                print(f"[WARN] run_local_server failed: {e}")
+                # Try manual browser open approach
+                auth_url, _ = flow.authorization_url(access_type='offline')
+                print(f"[INFO] Opening browser for login: {auth_url}")
+                # Try to open browser manually
+                try:
+                    webbrowser.open(auth_url)
+                except Exception as e2:
+                    print(f"[WARN] Could not open browser: {e2}")
+                # Show a message to user about the login URL
+                raise RuntimeError(f"กรุณาเปิด Browser แล้วไปที่ URL นี้เพื่อ Login:\n\n{auth_url}")
+        
+        # Try to save token, ignore if fails (at least we are logged in for this session)
+        try:
+            with open(DRIVE_TOKEN_FILE, "w", encoding="utf-8") as f:
+                f.write(creds.to_json())
+            print(f"[INFO] Token saved to: {DRIVE_TOKEN_FILE}")
+        except Exception as e:
+            print(f"[ERR] Could not save token.json: {e}")
 
     return build("drive", "v3", credentials=creds)
 
 
 def upload_video_to_drive(file_path: str, folder_id: str = "", make_shared: bool = False) -> dict:
     """
-    return dict: {id, name, webViewLink}
+    Upload video via Google Drive Official API (resumable)
+    return dict: {id, name, webViewLink} or {ok, fileId, webViewLink}
     """
     if not file_path or (not os.path.exists(file_path)):
         raise RuntimeError(f"File not found: {file_path}")
 
+    # Authenticate
     service = _get_drive_service()
+    
     file_name = os.path.basename(file_path)
+    file_size = os.path.getsize(file_path)
+    
+    print(f"[INFO] Uploading: {file_name} ({file_size / (1024*1024):.2f} MB)")
 
-    mime, _ = mimetypes.guess_type(file_path)
-    if not mime:
-        mime = "video/mp4"
-
-    metadata = {"name": file_name}
+    # Prepare metadata
+    file_metadata = {'name': file_name}
     if folder_id:
-        metadata["parents"] = [folder_id]
+        file_metadata['parents'] = [folder_id]
 
-    media = MediaFileUpload(file_path, mimetype=mime, resumable=True)
-    created = service.files().create(body=metadata, media_body=media, fields="id,name,webViewLink").execute()
+    # Chunk size for resumable upload (must be multiple of 256KB)
+    CHUNK_SIZE = 5 * 1024 * 1024 # 5MB chunks
 
+    media = MediaFileUpload(
+        file_path, 
+        mimetype=mimetypes.guess_type(file_path)[0] or 'application/octet-stream',
+        resumable=True,
+        chunksize=CHUNK_SIZE
+    )
+
+    request = service.files().create(
+        body=file_metadata,
+        media_body=media,
+        fields='id, name, webViewLink'
+    )
+
+    response = None
+    while response is None:
+        status, response = request.next_chunk()
+        if status:
+            print(f"[INFO] Uploaded {int(status.progress() * 100)}%")
+    
+    # If shared requested
     if make_shared:
-        service.permissions().create(
-            fileId=created["id"],
-            body={"type": "anyone", "role": "reader"},
-            fields="id"
-        ).execute()
-        created = service.files().get(fileId=created["id"], fields="id,name,webViewLink").execute()
+        try:
+            permission = {
+                'type': 'anyone',
+                'role': 'reader'
+            }
+            service.permissions().create(
+                fileId=response.get('id'),
+                body=permission,
+                fields='id',
+            ).execute()
+        except Exception as e:
+            print(f"[WARN] Failed to make file shared: {e}")
 
-    return created
+    return {
+        "id": response.get('id'),
+        "name": response.get('name'),
+        "webViewLink": response.get('webViewLink')
+    }
 
 
 class DriveUploadThread(QThread):
@@ -2112,7 +2183,7 @@ class MainWindow(QMainWindow):
         gr.setHorizontalSpacing(10)
         gr.setVerticalSpacing(8)
 
-        self.spin_cam = QSpinBox(); self.spin_cam.setRange(0, 10); self.spin_cam.setValue(1)
+        self.spin_cam = QSpinBox(); self.spin_cam.setRange(0, 10); self.spin_cam.setValue(0)
         self.spin_mirror = QSpinBox(); self.spin_mirror.setRange(0, 1); self.spin_mirror.setValue(1)
 
         gr.addWidget(QLabel("เลือกกล้อง (Index)"), 0, 0); gr.addWidget(self.spin_cam, 0, 1)
