@@ -21,6 +21,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
+        pip install rclone-python
 
     - name: Create Dummy Files for Build
       run: |
@@ -34,33 +35,21 @@ jobs:
       run: |
         pyinstaller ThaiDanceScoring.spec
 
-    - name: Create ZIP
+    - name: Zip the build
       run: |
         Compress-Archive -Path dist\ThaiDanceScoring -DestinationPath ThaiDanceScoring-Windows.zip
       shell: powershell
 
-    - name: Upload Artifact
+    - name: Upload to Google Drive
+      uses: adityak74/google-drive-upload-git-action@main
+      with:
+        credentials: ${{ secrets.GOOGLE_DRIVE_CREDENTIALS }}
+        filename: "ThaiDanceScoring-Windows.zip"
+        folderId: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
+        overwrite: "true"
+
+    - name: Upload Artifact (backup)
       uses: actions/upload-artifact@v4
       with:
         name: ThaiDanceScoring-Windows
         path: dist/ThaiDanceScoring
-
-    - name: Create Release
-      uses: softprops/action-gh-release@v1
-      if: github.ref == 'refs/heads/main'
-      with:
-        tag_name: build-${{ github.run_number }}
-        name: Windows Build #${{ github.run_number }}
-        body: |
-          🖥️ **Windows Build** 
-          
-          ดาวน์โหลดไฟล์ `ThaiDanceScoring-Windows.zip` ด้านล่าง
-          
-          **วิธีใช้:**
-          1. แตกไฟล์ ZIP
-          2. ดับเบิลคลิก `ThaiDanceScoring.exe`
-        files: ThaiDanceScoring-Windows.zip
-        draft: false
-        prerelease: false
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
