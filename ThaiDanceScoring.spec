@@ -78,9 +78,19 @@ google_imports = [
     "httplib2",
 ]
 
-# Hidden imports สำหรับ Qt Multimedia (audio playback)
-qt_multimedia_imports = [
+# Hidden imports สำหรับ PySide6 (แก้ปัญหา No module named 'PySide6.QtGui')
+pyside6_imports = [
+    "PySide6",
+    "PySide6.QtCore",
+    "PySide6.QtGui",
+    "PySide6.QtWidgets",
     "PySide6.QtMultimedia",
+    "PySide6.QtMultimediaWidgets",
+    "PySide6.QtNetwork",
+    "PySide6.QtOpenGL",
+    "PySide6.QtOpenGLWidgets",
+    "PySide6.QtSvg",
+    "PySide6.QtSvgWidgets",
 ]
 
 # Hidden imports สำหรับ MediaPipe (สำคัญมาก - แก้ปัญหา 'mediapipe has no attribute solutions')
@@ -107,7 +117,7 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=mp_datas + app_datas,   # <-- รวม mediapipe + app data files
-    hiddenimports=ultralytics_imports + google_imports + qt_multimedia_imports + mediapipe_imports,
+    hiddenimports=ultralytics_imports + google_imports + pyside6_imports + mediapipe_imports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
