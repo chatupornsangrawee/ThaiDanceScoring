@@ -23,11 +23,9 @@ jobs:
         pip install -r requirements.txt
 
     - name: Create Dummy Files for Build
-      # สร้างไฟล์หลอกๆ เพื่อให้ PyInstaller ทำงานผ่าน และลดขนาดโปรเจกต์
       run: |
         if not exist teacher_videos mkdir teacher_videos
-        if not exist teacher_videos\ระบำกฤดาภินิหาร.mp4 echo dummy > teacher_videos\ระบำกฤดาภินิหาร.mp4
-        if not exist teacher_videos\ระบำเทพบันเทิง.mp4 echo dummy > teacher_videos\ระบำเทพบันเทิง.mp4
+        if not exist teacher_videos\dummy.mp4 echo dummy > teacher_videos\dummy.mp4
         echo {} > credentials.json
         echo {} > token.json
       shell: cmd
@@ -36,8 +34,33 @@ jobs:
       run: |
         pyinstaller ThaiDanceScoring.spec
 
+    - name: Create ZIP
+      run: |
+        Compress-Archive -Path dist\ThaiDanceScoring -DestinationPath ThaiDanceScoring-Windows.zip
+      shell: powershell
+
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
         name: ThaiDanceScoring-Windows
         path: dist/ThaiDanceScoring
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      if: github.ref == 'refs/heads/main'
+      with:
+        tag_name: build-${{ github.run_number }}
+        name: Windows Build #${{ github.run_number }}
+        body: |
+          🖥️ **Windows Build** 
+          
+          ดาวน์โหลดไฟล์ `ThaiDanceScoring-Windows.zip` ด้านล่าง
+          
+          **วิธีใช้:**
+          1. แตกไฟล์ ZIP
+          2. ดับเบิลคลิก `ThaiDanceScoring.exe`
+        files: ThaiDanceScoring-Windows.zip
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
