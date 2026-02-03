@@ -1,8 +1,16 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-from PyInstaller.utils.hooks import collect_data_files
+from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 block_cipher = None
+
+# Collect PySide6 data files including Qt platform plugins (สำคัญมาก!)
+pyside6_datas, pyside6_binaries, pyside6_hiddenimports = [], [], []
+try:
+    from PyInstaller.utils.hooks import collect_all
+    pyside6_datas, pyside6_binaries, pyside6_hiddenimports = collect_all('PySide6')
+except Exception:
+    pass
 
 # เก็บไฟล์ data ของ mediapipe (สำคัญมากสำหรับ solutions)
 mp_datas = collect_data_files(
@@ -115,9 +123,9 @@ mediapipe_imports = [
 a = Analysis(
     ["main.py"],
     pathex=[],
-    binaries=[],
-    datas=mp_datas + app_datas,   # <-- รวม mediapipe + app data files
-    hiddenimports=ultralytics_imports + google_imports + pyside6_imports + mediapipe_imports,
+    binaries=pyside6_binaries,
+    datas=mp_datas + app_datas + pyside6_datas,   # <-- รวม mediapipe + app data files + PySide6 plugins
+    hiddenimports=ultralytics_imports + google_imports + pyside6_imports + mediapipe_imports + pyside6_hiddenimports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
