@@ -21,34 +21,20 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        pip install rclone-python
 
     - name: Create Dummy Files for Build
       run: |
-        if not exist teacher_videos mkdir teacher_videos
-        if not exist teacher_videos\dummy.mp4 echo dummy > teacher_videos\dummy.mp4
-        echo {} > credentials.json
-        echo {} > token.json
-      shell: cmd
+        if (-not (Test-Path "teacher_videos")) { New-Item -ItemType Directory -Path "teacher_videos" }
+        if (-not (Test-Path "teacher_videos/dummy1.mp4")) { "dummy" | Out-File "teacher_videos/dummy1.mp4" }
+        if (-not (Test-Path "credentials.json")) { "{}" | Out-File "credentials.json" -Encoding UTF8 }
+        if (-not (Test-Path "token.json")) { "{}" | Out-File "token.json" -Encoding UTF8 }
+      shell: pwsh
 
     - name: Build with PyInstaller
       run: |
         pyinstaller ThaiDanceScoring.spec
 
-    - name: Zip the build
-      run: |
-        Compress-Archive -Path dist\ThaiDanceScoring -DestinationPath ThaiDanceScoring-Windows.zip
-      shell: powershell
-
-    - name: Upload to Google Drive
-      uses: adityak74/google-drive-upload-git-action@main
-      with:
-        credentials: ${{ secrets.GOOGLE_DRIVE_CREDENTIALS }}
-        filename: "ThaiDanceScoring-Windows.zip"
-        folderId: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
-        overwrite: "true"
-
-    - name: Upload Artifact (backup)
+    - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
         name: ThaiDanceScoring-Windows
